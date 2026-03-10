@@ -14,8 +14,8 @@ export interface ValidationResult {
 function extractJson(raw: string): string {
   let cleaned = raw.trim();
 
-  // Strip markdown code fences if present
-  const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  // Strip markdown code fences if present (handles both complete and truncated fences)
+  const fenceMatch = cleaned.match(/```(?:json)?\s*\n?([\s\S]*?)(?:\n?```|$)/);
   if (fenceMatch?.[1]) {
     cleaned = fenceMatch[1].trim();
   }

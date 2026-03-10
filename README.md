@@ -45,13 +45,13 @@ npm start
 
 Type `/` and press Enter to open the interactive menu, or type commands directly:
 
-| Command | Description |
-|---|---|
-| `/model` | Choose from locally installed Ollama models |
-| `/verbose` | Toggle live thinking output |
-| `/settings` | Configure temperature & max tokens |
-| `/help` | List all commands |
-| `/exit` | Quit |
+| Command     | Description                                 |
+| ----------- | ------------------------------------------- |
+| `/model`    | Choose from locally installed Ollama models |
+| `/verbose`  | Toggle live thinking output                 |
+| `/settings` | Configure temperature & max tokens          |
+| `/help`     | List all commands                           |
+| `/exit`     | Quit                                        |
 
 ### Autocomplete
 
@@ -59,24 +59,24 @@ Start typing `/` and matching commands appear below the prompt in real-time. Pre
 
 ### Keyboard Shortcuts
 
-| Key | Action |
-|---|---|
+| Key       | Action                   |
+| --------- | ------------------------ |
 | `↑` / `↓` | Navigate command history |
-| `Tab` | Autocomplete command |
-| `Esc` | Clear input |
-| `Ctrl+C` | Exit |
-| `Ctrl+D` | Exit |
+| `Tab`     | Autocomplete command     |
+| `Esc`     | Clear input              |
+| `Ctrl+C`  | Exit                     |
+| `Ctrl+D`  | Exit                     |
 
 ## Dynamic Token Budgeting
 
 The agent automatically estimates the right output token budget per task:
 
-| Tier | Tokens | When |
-|---|---|---|
-| **light** | 1024 | Short, simple queries |
-| **medium** | 1536 | Longer input (80+ words) |
-| **heavy** | 2048 | Code / architecture keywords detected |
-| **complex** | 3072 | Multi-step, code + architecture combined |
+| Tier        | Tokens | When                                     |
+| ----------- | ------ | ---------------------------------------- |
+| **light**   | 1024   | Short, simple queries                    |
+| **medium**  | 1536   | Longer input (80+ words)                 |
+| **heavy**   | 2048   | Code / architecture keywords detected    |
+| **complex** | 3072   | Multi-step, code + architecture combined |
 
 Heuristics analyze keyword density, code blocks, input length, and list items to pick the optimal tier.
 

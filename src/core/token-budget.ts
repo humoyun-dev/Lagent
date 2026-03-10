@@ -55,6 +55,18 @@ const CODE_KEYWORDS = [
   "module",
   "package",
   "dependency",
+  "build",
+  "create",
+  "app",
+  "game",
+  "server",
+  "client",
+  "frontend",
+  "backend",
+  "cli",
+  "script",
+  "component",
+  "library",
 ];
 
 const ARCHITECTURE_KEYWORDS = [
@@ -141,17 +153,23 @@ export function estimateTokenBudget(task: string): BudgetResult {
   const hasListItems = (task.match(/^[\s]*[-*\d.]+\s/gm) ?? []).length;
 
   // ─── determine tier ─────────
-  let tier: ComplexityTier = "light";
-  let reason = "short query";
+  let tier: ComplexityTier = "medium";
+  let reason = "default plan output";
+
+  // Very short AND no signals at all → medium (still needs structured JSON)
+  if (wordCount <= 5 && codeScore === 0 && archScore === 0 && longScore === 0) {
+    tier = "medium";
+    reason = "short query";
+  }
 
   // Long input itself signals complexity
   if (wordCount > 80 || lineCount > 8) {
-    tier = "medium";
+    tier = "heavy";
     reason = `long input (${wordCount} words, ${lineCount} lines)`;
   }
 
-  // Code-related
-  if (codeScore >= 2 || hasCode) {
+  // Any code keyword → at least heavy
+  if (codeScore >= 1) {
     tier = "heavy";
     reason = `code-related (${codeScore} keyword${codeScore !== 1 ? "s" : ""}${hasCode ? " + code block" : ""})`;
   }
@@ -172,12 +190,6 @@ export function estimateTokenBudget(task: string): BudgetResult {
   if (hasListItems >= 4 || (codeScore >= 2 && archScore >= 1)) {
     tier = "complex";
     reason = `complex multi-step (code:${codeScore}, arch:${archScore}, list:${hasListItems})`;
-  }
-
-  // Very short queries stay light
-  if (wordCount <= 8 && codeScore === 0 && archScore === 0 && longScore === 0) {
-    tier = "light";
-    reason = "short query";
   }
 
   return {
