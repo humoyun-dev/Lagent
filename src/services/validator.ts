@@ -31,6 +31,17 @@ function extractJson(raw: string): string {
 }
 
 /**
+ * Formats Zod validation issues into a human-readable string.
+ */
+function formatValidationIssues(
+  issues: Array<{ path: PropertyKey[]; message: string }>,
+): string {
+  return issues
+    .map((i) => `  - ${i.path.map(String).join(".")}: ${i.message}`)
+    .join("\n");
+}
+
+/**
  * Validates raw response text against the PlanOutput schema.
  */
 export function validatePlanOutput(raw: string): ValidationResult {
@@ -49,14 +60,12 @@ export function validatePlanOutput(raw: string): ValidationResult {
   const result = PlanOutputSchema.safeParse(parsed);
 
   if (!result.success) {
-    const issues = result.error.issues
-      .map((i) => `  - ${i.path.join(".")}: ${i.message}`)
-      .join("\n");
+    const issues = formatValidationIssues(result.error.issues);
     return {
       success: false,
       error: `Schema validation failed:\n${issues}`,
     };
   }
 
-  return { success: true, data: result.data };
+  return { success: true, data: result.data as PlanOutput };
 }

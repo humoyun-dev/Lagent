@@ -1,39 +1,26 @@
 import { z } from "zod";
 
-// Coerce a single string into a one-element array so the model can return either
-const stringOrArray = z.union([
-  z.array(z.string()),
-  z.string().transform((s) => [s]),
-]);
-
 export const PlanStepSchema = z.object({
-  id: z.number(),
-  title: z.string(),
-  description: z.string(),
-  expected_result: z.string(),
+  id: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  reason: z.string().min(1),
+  files: z.array(z.string()),
+  dependencies: z.array(z.string()),
+  expected_output: z.string().min(1),
 });
 
-export const CliUxSchema = z.object({
-  normal_mode: stringOrArray,
-  verbose_mode: stringOrArray,
-  error_handling: stringOrArray,
-});
-
-export const FutureExtensionSchema = z.object({
-  component: z.string(),
-  when_to_add: z.string(),
-  reason: z.string(),
+export const PlanRiskSchema = z.object({
+  level: z.enum(["low", "medium", "high"]),
+  message: z.string().min(1),
 });
 
 export const PlanOutputSchema = z.object({
-  goal: z.string(),
-  analysis: z.string(),
-  assumptions: z.union([z.array(z.string()), z.string().transform((s) => [s])]),
+  schema_version: z.string().default("1.0"),
+  goal: z.string().min(1),
+  summary: z.string().min(1),
+  assumptions: z.array(z.string()),
   steps: z.array(PlanStepSchema).min(1),
-  cli_ux: CliUxSchema.optional().default({
-    normal_mode: [],
-    verbose_mode: [],
-    error_handling: [],
-  }),
-  future_extensions: z.array(FutureExtensionSchema).optional().default([]),
+  risks: z.array(PlanRiskSchema),
+  acceptance_criteria: z.array(z.string()).min(1),
 });

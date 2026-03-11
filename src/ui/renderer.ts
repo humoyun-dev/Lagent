@@ -50,6 +50,14 @@ export function renderError(message: string): void {
   console.error("");
 }
 
+export function renderWarning(message: string): void {
+  if (thinkingActive) {
+    process.stdout.write("\r\x1b[K");
+    thinkingActive = false;
+  }
+  console.log(chalk.yellow("  ⚠ ") + chalk.yellow(message));
+}
+
 // ─── thinking display ────────────────────────────────────────────────────────
 export function renderThinkingStart(): void {
   thinkingActive = true;
@@ -110,10 +118,10 @@ export function renderPlan(plan: PlanOutput, verbose: boolean): void {
   console.log("");
   console.log(hr());
 
-  // Analysis
+  // Summary
   console.log("");
-  console.log(pad(chalk.bold.dim("ANALYSIS")));
-  console.log(pad(chalk.white(wrap(plan.analysis, w - 4))));
+  console.log(pad(chalk.bold.dim("SUMMARY")));
+  console.log(pad(chalk.white(wrap(plan.summary, w - 4))));
 
   // Assumptions
   if (plan.assumptions.length > 0) {
@@ -132,61 +140,77 @@ export function renderPlan(plan: PlanOutput, verbose: boolean): void {
   console.log("");
 
   for (const step of plan.steps) {
-    const num = chalk.green.bold(String(step.id).padStart(2, " ") + " ");
-    console.log(pad(num + chalk.bold.white(step.title)));
+    const label = chalk.green.bold(step.id.padStart(7, " ") + " ");
+    console.log(pad(label + chalk.bold.white(step.title)));
     console.log(
       pad(
-        "     " +
+        "         " +
           chalk.white(
-            wrap(step.description, w - 9).replace(/\n/g, "\n" + " ".repeat(9)),
+            wrap(step.description, w - 11).replace(
+              /\n/g,
+              "\n" + " ".repeat(11),
+            ),
           ),
       ),
     );
-    console.log(pad("     " + chalk.dim("→ " + step.expected_result)));
+    if (verbose && step.reason) {
+      console.log(pad("         " + chalk.dim("reason: " + step.reason)));
+    }
+    if (step.files.length > 0) {
+      console.log(
+        pad(
+          "         " +
+            chalk.dim("files: ") +
+            chalk.cyan(step.files.join(", ")),
+        ),
+      );
+    }
+    if (step.dependencies.length > 0) {
+      console.log(
+        pad(
+          "         " +
+            chalk.dim("deps: ") +
+            chalk.dim(step.dependencies.join(", ")),
+        ),
+      );
+    }
+    console.log(pad("         " + chalk.dim("→ " + step.expected_output)));
     console.log("");
   }
 
-  // Verbose: CLI UX + future extensions
-  if (verbose) {
-    if (
-      plan.cli_ux &&
-      (plan.cli_ux.normal_mode.length > 0 ||
-        plan.cli_ux.error_handling.length > 0)
-    ) {
-      console.log(hr());
-      console.log("");
-      console.log(pad(chalk.bold.dim("CLI UX NOTES")));
-
-      if (plan.cli_ux.normal_mode.length > 0) {
-        console.log(pad(chalk.dim("  Normal mode:")));
-        for (const s of plan.cli_ux.normal_mode)
-          console.log(pad(chalk.dim("    • ") + chalk.white(s)));
-      }
-      if (plan.cli_ux.verbose_mode.length > 0) {
-        console.log(pad(chalk.dim("  Verbose mode:")));
-        for (const s of plan.cli_ux.verbose_mode)
-          console.log(pad(chalk.dim("    • ") + chalk.white(s)));
-      }
-      if (plan.cli_ux.error_handling.length > 0) {
-        console.log(pad(chalk.dim("  Error handling:")));
-        for (const s of plan.cli_ux.error_handling)
-          console.log(pad(chalk.dim("    • ") + chalk.white(s)));
-      }
-      console.log("");
+  // Risks
+  if (plan.risks.length > 0) {
+    console.log(hr());
+    console.log("");
+    console.log(pad(chalk.bold.dim("RISKS")));
+    for (const risk of plan.risks) {
+      const levelColor =
+        risk.level === "high"
+          ? chalk.red
+          : risk.level === "medium"
+            ? chalk.yellow
+            : chalk.green;
+      console.log(
+        pad(
+          chalk.dim("  • ") +
+            levelColor(`[${risk.level}]`) +
+            " " +
+            chalk.white(risk.message),
+        ),
+      );
     }
+    console.log("");
+  }
 
-    if (plan.future_extensions && plan.future_extensions.length > 0) {
-      console.log(hr());
-      console.log("");
-      console.log(pad(chalk.bold.dim("FUTURE EXTENSIONS")));
-      console.log("");
-      for (const ext of plan.future_extensions) {
-        console.log(pad(chalk.dim("  ◇ ") + chalk.white.bold(ext.component)));
-        console.log(pad(chalk.dim("    When: ") + chalk.dim(ext.when_to_add)));
-        console.log(pad(chalk.dim("    Why:  ") + chalk.dim(ext.reason)));
-        console.log("");
-      }
+  // Acceptance criteria
+  if (plan.acceptance_criteria.length > 0) {
+    console.log(hr());
+    console.log("");
+    console.log(pad(chalk.bold.dim("ACCEPTANCE CRITERIA")));
+    for (const c of plan.acceptance_criteria) {
+      console.log(pad(chalk.dim("  ✓ ") + chalk.white(c)));
     }
+    console.log("");
   }
 
   console.log(hr("═"));

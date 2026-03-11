@@ -1,4 +1,4 @@
-import { buildPlannerPrompt } from "./prompt.js";
+import { buildPlannerPrompt, buildRepairPrompt } from "./prompt.js";
 import { estimateTokenBudget, tierLabel } from "./token-budget.js";
 import { requestOllamaStream } from "../services/ollama.js";
 import { parseStream } from "../services/stream-parser.js";
@@ -11,10 +11,60 @@ import {
   renderThinkingEnd,
   renderPlan,
   renderError,
+  renderWarning,
 } from "../ui/renderer.js";
 import { saveOutputs } from "../utils/files.js";
 import { log } from "../utils/logger.js";
 import type { PlanOutput, PlannerOptions, StreamEvent } from "./types.js";
+
+async function collectStream(
+  rawStream: AsyncGenerator<string>,
+  options: { showThinking: boolean },
+): Promise<string | null> {
+  let fullResponse = "";
+  let thinkingActive = false;
+
+  try {
+    for await (const event of parseStream(rawStream)) {
+      if (event.type === "thinking") {
+        if (options.showThinking) {
+          if (!thinkingActive) {
+            thinkingActive = true;
+            renderThinkingStart();
+          }
+          renderThinkingToken(event.data);
+        }
+      }
+
+      if (event.type === "response") {
+        if (thinkingActive) {
+          renderThinkingEnd();
+          thinkingActive = false;
+        }
+        fullResponse += event.data;
+      }
+
+      if (event.type === "done") {
+        if (thinkingActive) {
+          renderThinkingEnd();
+          thinkingActive = false;
+        }
+      }
+
+      if (event.type === "error") {
+        renderError(event.data);
+        return null;
+      }
+    }
+  } catch (err) {
+    renderError(
+      `Stream error: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return null;
+  }
+
+  return fullResponse;
+}
 
 export async function runPlanner(
   task: string,
@@ -52,50 +102,51 @@ export async function runPlanner(
 
   // 3. Parse stream — show thinking to user
   renderStatus("Receiving response...");
-  let fullResponse = "";
-  let thinkingActive = false;
+  const fullResponse = await collectStream(rawStream, {
+    showThinking: true,
+  });
 
-  try {
-    for await (const event of parseStream(rawStream)) {
-      if (event.type === "thinking") {
-        if (!thinkingActive) {
-          thinkingActive = true;
-          renderThinkingStart();
-        }
-        // show live thinking
-        renderThinkingToken(event.data);
-      }
-
-      if (event.type === "response") {
-        if (thinkingActive) {
-          renderThinkingEnd();
-          thinkingActive = false;
-        }
-        fullResponse += event.data;
-      }
-
-      if (event.type === "done") {
-        if (thinkingActive) {
-          renderThinkingEnd();
-          thinkingActive = false;
-        }
-      }
-
-      if (event.type === "error") {
-        renderError(event.data);
-        return null;
-      }
-    }
-  } catch (err) {
-    renderError(
-      `Stream error: ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return null;
-  }
+  if (fullResponse === null) return null;
 
   // 4. Validate
   renderStatus("Validating plan...");
-  const validation = validatePlanOutput(fullResponse);
+  let validation = validatePlanOutput(fullResponse);
+
+  // 4.5 Retry once if validation failed
+  if (!validation.success && validation.error) {
+    renderWarning(`Validation failed, retrying with repair prompt...`);
+    log(options.verbose, "Validation error", validation.error);
+
+    const repairPrompt = buildRepairPrompt(fullResponse, validation.error);
+
+    try {
+      const retryStream = requestOllamaStream(options.model, repairPrompt, {
+        temperature: 0.2,
+        maxTokens: effectiveTokens,
+      });
+
+      renderStatus("Receiving corrected response...");
+      const retryResponse = await collectStream(retryStream, {
+        showThinking: false,
+      });
+
+      if (retryResponse !== null) {
+        validation = validatePlanOutput(retryResponse);
+
+        if (validation.success) {
+          renderSuccess("Repair successful — plan validated on retry");
+        } else {
+          log(options.verbose, "Retry also failed", validation.error ?? "");
+        }
+      }
+    } catch (err) {
+      log(
+        options.verbose,
+        "Retry failed",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
 
   if (!validation.success || !validation.data) {
     renderError(`Validation failed:\n${validation.error}`);

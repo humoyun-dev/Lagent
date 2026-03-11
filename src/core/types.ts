@@ -1,29 +1,28 @@
+export type RiskLevel = "low" | "medium" | "high";
+
 export interface PlanStep {
-  id: number;
+  id: string;
   title: string;
   description: string;
-  expected_result: string;
-}
-
-export interface CliUx {
-  normal_mode: string[];
-  verbose_mode: string[];
-  error_handling: string[];
-}
-
-export interface FutureExtension {
-  component: string;
-  when_to_add: string;
   reason: string;
+  files: string[];
+  dependencies: string[];
+  expected_output: string;
+}
+
+export interface PlanRisk {
+  level: RiskLevel;
+  message: string;
 }
 
 export interface PlanOutput {
+  schema_version: string;
   goal: string;
-  analysis: string;
+  summary: string;
   assumptions: string[];
   steps: PlanStep[];
-  cli_ux: CliUx;
-  future_extensions: FutureExtension[];
+  risks: PlanRisk[];
+  acceptance_criteria: string[];
 }
 
 export type StreamEventType =
